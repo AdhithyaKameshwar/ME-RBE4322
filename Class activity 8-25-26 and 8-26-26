@@ -1,0 +1,226 @@
+% six bar linkage
+% Static Equilibrium, Velocity, and Acceleration Analysis
+
+clc;
+clear;
+
+% define the joints
+A = [7 4 0];
+B = [5 16 0];
+C = [25 25 0];
+D = [23 10 0];
+E = [18 35 0];
+F = [43 32 0];
+G = [45 17 0];
+
+% Define the lengths of the bars
+lAB = norm(B - A);
+lBC = norm(C - B);
+lCD = norm(D - C);
+lDE = norm(E - D);
+lEF = norm(F - E);
+lFG = norm(G - F);
+
+% Weight of Each Link
+WAB  = [0 -1 0];
+WBEC = [0 -1 0];
+WCD  = [0 -1 0];
+WEF  = [0 -1 0];
+WFG  = [0 -1 0];
+
+% center of mass of each link
+S1 = (A+B)/2;
+S2 = (B+C+E)/3;
+S3 = (C+D)/2;
+S4 = (E+F)/2;
+S5 = (F+G)/2;
+
+syms FAx FAy FBx FBy FCx FCy FDx FDy FEx FEy FFx FFy FGx FGy Tin
+
+ForceA = [FAx FAy 0];
+ForceB = [FBx FBy 0];
+ForceC = [FCx FCy 0];
+ForceD = [FDx FDy 0];
+ForceE = [FEx FEy 0];
+ForceF = [FFx FFy 0];
+ForceG = [FGx FGy 0];
+InputTorque = [0 0 Tin];
+
+% Applied Force
+AppliedForce = [50 0 0];
+
+% Static Equilibrium Condition for Link AB
+eqn1 = ForceA + ForceB + WAB == 0;
+eqn2 = cross(A-S1,ForceA) + cross(B-S1,ForceB) + InputTorque == 0;
+
+eqn3 = -ForceB + ForceC + ForceE + WBEC == 0;
+eqn4 = cross(B - S2, -ForceB) + cross(C - S2, ForceC) + cross(E - S2, ForceE) == 0;
+
+eqn5 = -ForceC + ForceD + WCD == 0;
+eqn6 = cross(C - S3, -ForceC) + cross(D - S3, ForceD) == 0;
+
+eqn7 = -ForceE + ForceF + WEF == 0;
+eqn8 = cross(E - S4, -ForceE) + cross(F - S4, ForceF) == 0;
+
+eqn9  = -ForceF + ForceG + WFG + AppliedForce == 0;
+eqn10 = cross(F - S5, -ForceF) + cross(G - S5, ForceG) == 0;
+
+% Solving the 10 equations
+eqnMatrix = [eqn1, eqn2, eqn3, eqn4, eqn5, eqn6, eqn7, eqn8, eqn9, eqn10];
+
+StaticSolution = solve(eqnMatrix, [FAx FAy FBx FBy FCx FCy FDx FDy FEx FEy FFx FFy FGx FGy Tin]);
+
+Force_Ax = double(StaticSolution.FAx);
+Force_Ay = double(StaticSolution.FAy);
+
+Force_Bx = double(StaticSolution.FBx);
+Force_By = double(StaticSolution.FBy);
+
+Force_Cx = double(StaticSolution.FCx);
+Force_Cy = double(StaticSolution.FCy);
+
+Force_Dx = double(StaticSolution.FDx);
+Force_Dy = double(StaticSolution.FDy);
+
+Force_Ex = double(StaticSolution.FEx);
+Force_Ey = double(StaticSolution.FEy);
+
+Force_Fx = double(StaticSolution.FFx);
+Force_Fy = double(StaticSolution.FFy);
+
+Force_Gx = double(StaticSolution.FGx);
+Force_Gy = double(StaticSolution.FGy);
+
+Input_Torque = double(StaticSolution.Tin);
+
+%% Angular velocity calculations
+% Loop 1: A-B-C-D-A
+syms wBEC wCD
+omega_AB  = [0 0 1];
+omega_BEC = [0 0 wBEC];
+omega_CD  = [0 0 wCD];
+
+eqn11 = cross(omega_AB,B-A) + cross(omega_BEC,C-B) + cross(omega_CD,D-C) == 0;
+
+loop1Solution = solve(eqn11,[wBEC wCD]);
+
+% angular velocities from loop solution
+angularVelocity_BEC = double(loop1Solution.wBEC);
+angularVelocity_CD  = double(loop1Solution.wCD);
+
+omegaBEC = [0 0 angularVelocity_BEC];
+omegaCD  = [0 0 angularVelocity_CD];
+
+% Loop 2: D-C-E-F-G-D
+syms wEF wFG
+omega_EF = [0 0 wEF];   % FIX: was mistakenly [0 0 WEF] (the weight vector)
+omega_FG = [0 0 wFG];
+
+eqn12 = cross(omegaCD,D-C) + cross(omegaBEC,E-C) + cross(omega_EF,F-E) + cross(omega_FG,G-F) == 0;
+
+loop2solution = solve(eqn12,[wEF wFG]);
+
+% Angular velocities from loop solution
+angularVelocity_EF = double(loop2solution.wEF);
+angularVelocity_FG = double(loop2solution.wFG);
+
+omegaEF = [0 0 angularVelocity_EF];
+omegaFG = [0 0 angularVelocity_FG];
+
+%% Angular acceleration
+% Loop 1: A-B-C-D-A
+syms aBEC aCD
+alpha_AB  = [0 0 0];
+alpha_BEC = [0 0 aBEC];
+alpha_CD  = [0 0 aCD];
+
+a_B_A = cross(alpha_AB,  B-A) + cross(omega_AB,  cross(omega_AB,  B-A));
+a_C_B = cross(alpha_BEC, C-B) + cross(omegaBEC,  cross(omegaBEC,  C-B));
+a_D_C = cross(alpha_CD,  D-C) + cross(omegaCD,   cross(omegaCD,   D-C));
+
+eqn13 = a_B_A + a_C_B + a_D_C == 0;
+loop1AccSolution = solve(eqn13,[aBEC aCD]);
+
+alphaBEC = double(loop1AccSolution.aBEC);
+alphaCD  = double(loop1AccSolution.aCD);
+
+alphaBEC_vector = [0 0 alphaBEC];
+alphaCD_vector  = [0 0 alphaCD];
+
+% Loop 2: D-C-E-F-G-D
+syms aEF aFG
+alpha_EF = [0 0 aEF];
+alpha_FG = [0 0 aFG];
+
+a_C_D = cross(alphaCD_vector,  C-D) + cross(omegaCD,  cross(omegaCD,  C-D));
+a_E_C = cross(alphaBEC_vector, E-C) + cross(omegaBEC, cross(omegaBEC, E-C));
+a_F_E = cross(alpha_EF, F-E)        + cross(omegaEF,  cross(omegaEF,  F-E));
+a_G_F = cross(alpha_FG, G-F)        + cross(omegaFG,  cross(omegaFG,  G-F));
+
+eqn14 = a_C_D + a_E_C + a_F_E + a_G_F == 0;
+loop2AccSolution = solve(eqn14,[aEF aFG]);
+
+
+alphaEF = double(loop2AccSolution.aEF);
+alphaFG = double(loop2AccSolution.aFG);
+
+%% Velocity of joints B, C, E, F (A, D, G are fixed pivots -> zero velocity)
+VA = [0 0 0];
+VB = cross(omega_AB, B-A);
+VC = VB + cross(omegaBEC, C-B);
+VE = VB + cross(omegaBEC, E-B);
+VF = VE + cross(omegaEF,  F-E);
+
+%these should evaluate to ~[0 0 0] since D and G are fixed
+VD_check = VC + cross(omegaCD, D-C);
+VG_check = VF + cross(omegaFG, G-F);
+
+%% Acceleration of joints B, C, E, F (A, D, G are fixed pivots -> zero acceleration)
+AA = [0 0 0];
+AB = cross(alpha_AB, B-A) + cross(omega_AB, cross(omega_AB, B-A));
+AC = AB + cross(alphaBEC_vector, C-B) + cross(omegaBEC, cross(omegaBEC, C-B));
+AE = AB + cross(alphaBEC_vector, E-B) + cross(omegaBEC, cross(omegaBEC, E-B));
+
+alphaEF_vector = [0 0 alphaEF];
+alphaFG_vector = [0 0 alphaFG];
+
+AF = AE + cross(alphaEF_vector, F-E) + cross(omegaEF, cross(omegaEF, F-E));
+
+% these should evaluate to ~[0 0 0] since D and G are fixed
+AD_check = AC + cross(alphaCD_vector, D-C) + cross(omegaCD, cross(omegaCD, D-C));
+AG_check = AF + cross(alphaFG_vector, G-F) + cross(omegaFG, cross(omegaFG, G-F));
+
+%% Velocity of each link's center of mass (Vs1 - Vs5)
+% Link 1 (AB) pivots about fixed A
+Vs1 = cross(omega_AB, S1-A);
+% Link 2 (BEC) - reference off known point B
+Vs2 = VB + cross(omegaBEC, S2-B);
+% Link 3 (CD) - reference off known point C
+Vs3 = VC + cross(omegaCD, S3-C);
+% Link 4 (EF) - reference off known point E
+Vs4 = VE + cross(omegaEF, S4-E);
+% Link 5 (FG) - reference off known point F
+Vs5 = VF + cross(omegaFG, S5-F);
+
+%% Acceleration of each link's center of mass (As1 - As5)
+% Link 1 (AB) pivots about fixed A
+As1 = cross(alpha_AB, S1-A) + cross(omega_AB, cross(omega_AB, S1-A));
+% Link 2 (BEC) - reference off known point B
+As2 = AB + cross(alphaBEC_vector, S2-B) + cross(omegaBEC, cross(omegaBEC, S2-B));
+% Link 3 (CD) - reference off known point C
+As3 = AC + cross(alphaCD_vector, S3-C) + cross(omegaCD, cross(omegaCD, S3-C));
+% Link 4 (EF) - reference off known point E
+As4 = AE + cross(alphaEF_vector, S4-E) + cross(omegaEF, cross(omegaEF, S4-E));
+% Link 5 (FG) - reference off known point F
+As5 = AF + cross(alphaFG_vector, S5-F) + cross(omegaFG, cross(omegaFG, S5-F));
+
+%% Display results
+disp('Joint velocities [VB VC VE VF]:');
+disp([VB; VC; VE; VF]);
+disp('Joint accelerations [AB AC AE AF]:');
+disp([AB; AC; AE; AF]);
+
+disp('Center-of-mass velocities [Vs1 Vs2 Vs3 Vs4 Vs5]:');
+disp([Vs1; Vs2; Vs3; Vs4; Vs5]);
+disp('Center-of-mass accelerations [As1 As2 As3 As4 As5]:');
+disp([As1; As2; As3; As4; As5]);
