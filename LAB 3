@@ -1,0 +1,83 @@
+clc
+clear
+close all
+
+%% Lumped Parameters
+
+Meq = 0.10678;      % kg
+Keq = 4.76e4;       % N/m
+Deq = 10;           % N*s/m
+
+%% Applied Load
+
+F = 22.2;           % N (5 lb laptop)
+
+%% Define Equation
+
+syms x(t)
+
+eqn = Meq*diff(x,t,2) + ...
+    Deq*diff(x,t) + ...
+    Keq*x == F;
+
+Dx = diff(x,t);
+
+%% Initial Conditions
+
+IC = [x(0)==0,...
+    Dx(0)==0];
+
+%% Solve
+
+xSol = dsolve(eqn,IC);
+
+vSol = diff(xSol,t);
+
+aSol = diff(vSol,t);
+
+%% Display Solutions
+
+disp('Displacement:')
+pretty(simplify(xSol))
+
+disp('Velocity:')
+pretty(simplify(vSol))
+
+disp('Acceleration:')
+pretty(simplify(aSol))
+
+%% Displacement Plot
+
+figure
+fplot(xSol,[0 0.05],'LineWidth',2)
+grid on
+xlabel('Time (s)')
+ylabel('Displacement (m)')
+title('Displacement Response')
+
+%% Velocity Plot
+
+figure
+fplot(vSol,[0 0.05],'LineWidth',2)
+grid on
+xlabel('Time (s)')
+ylabel('Velocity (m/s)')
+title('Velocity Response')
+
+%% Acceleration Plot
+
+figure
+fplot(aSol,[0 0.05],'LineWidth',2)
+grid on
+xlabel('Time (s)')
+ylabel('Acceleration (m/s^2)')
+title('Acceleration Response')
+
+%% System Characteristics
+
+wn = sqrt(Keq/Meq);
+zeta = Deq/(2*sqrt(Meq*Keq));
+
+fprintf('Natural Frequency = %.2f rad/s\n',wn);
+fprintf('Damping Ratio = %.4f\n',zeta);
+fprintf('Steady State Displacement = %.8f m\n',F/Keq);
