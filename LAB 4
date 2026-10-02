@@ -1,0 +1,91 @@
+clc
+clear
+close all
+
+%% Lumped Parameters (computed from gear train lumping)
+
+Jeq = 2.78e-6;        % kg*m^2
+Keq = 0.0746;         % N*m/rad
+Deq = 1.98e-4;        % N*m*s/rad
+
+%% Input
+
+R1 = 11;              % teeth, gear 1
+R2 = 72;              % teeth, gear 2
+wIn = 397.94;         % rad/s, motor input speed (3800 rpm)
+
+%% Define Equation of Motion
+% theta_in(t) = wIn*t, since motor is a constant-speed (ramp position) source
+
+syms theta(t)
+
+eqn = Jeq*diff(theta,t,2) + ...
+    Deq*diff(theta,t) + ...
+    Keq*theta == Keq*(R1/R2)*wIn*t;
+
+Dtheta = diff(theta,t);
+
+%% Initial Conditions
+
+IC = [theta(0)==0, Dtheta(0)==0];
+
+%% Solve
+
+thetaSol = dsolve(eqn,IC);
+
+omegaSol = diff(thetaSol,t);
+
+alphaSol = diff(omegaSol,t);
+
+%% Display Solutions
+
+disp('Angular Displacement:')
+pretty(simplify(thetaSol))
+
+disp('Angular Velocity:')
+pretty(simplify(omegaSol))
+
+disp('Angular Acceleration:')
+pretty(simplify(alphaSol))
+
+%% Angular Displacement Plot
+
+figure
+fplot(thetaSol,[0 0.15],'LineWidth',2)
+grid on
+xlabel('Time (s)')
+ylabel('\theta_3 (rad)')
+title('Angular Displacement Response (Sun/Gear-3 Shaft)')
+
+%% Angular Velocity Plot (with steady-state reference)
+
+wSS = (R1/R2)*wIn;
+
+figure
+fplot(omegaSol,[0 0.15],'LineWidth',2)
+hold on
+yline(wSS, '--r', 'Steady-State \omega_3')
+grid on
+xlabel('Time (s)')
+ylabel('\omega_3 (rad/s)')
+title('Angular Velocity Response (Sun/Gear-3 Shaft)')
+legend('\omega_3(t)','Steady-state target','Location','best')
+
+%% Angular Acceleration Plot
+
+figure
+fplot(alphaSol,[0 0.15],'LineWidth',2)
+grid on
+xlabel('Time (s)')
+ylabel('\alpha_3 (rad/s^2)')
+title('Angular Acceleration Response (Sun/Gear-3 Shaft)')
+
+%% System Characteristics
+
+wn = sqrt(Keq/Jeq);
+zeta = Deq/(2*sqrt(Jeq*Keq));
+
+fprintf('Natural Frequency = %.2f rad/s\n',wn);
+fprintf('Damping Ratio = %.4f\n',zeta);
+fprintf('Steady-State Angular Velocity = %.2f rad/s (%.1f rpm)\n', ...
+    wSS, wSS*60/(2*pi));
